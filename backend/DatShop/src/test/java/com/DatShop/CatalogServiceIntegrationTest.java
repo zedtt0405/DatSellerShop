@@ -20,6 +20,7 @@ import com.DatShop.dto.catalog.ProductVariantResponse;
 import com.DatShop.dto.catalog.ProductVariantUpdateRequest;
 import com.DatShop.dto.catalog.SizeCreateRequest;
 import com.DatShop.dto.catalog.SizeResponse;
+import com.DatShop.dto.catalog.StockUpdateRequest;
 import com.DatShop.exception.ApiError;
 import com.DatShop.exception.BusinessRuleException;
 import com.DatShop.exception.DuplicateResourceException;
@@ -328,6 +329,37 @@ class CatalogServiceIntegrationTest {
                 variantRequest(product.id(), null, null, "SKU-" + suffix(), -1)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("stockQuantity");
+    }
+
+    @Test
+    void updateStockSetsAbsoluteQuantityAndRejectsInvalidTargets() {
+        String suffix = suffix();
+        ProductResponse product = savedProduct(suffix);
+        ProductResponse other = savedProduct(suffix + "b");
+        ProductVariantResponse variant = productVariantService.create(
+                variantRequest(product.id(), null, null, "SKU-STK-" + suffix, 3));
+
+        ProductVariantResponse updated = productVariantService.updateStock(
+                product.id(), variant.id(), new StockUpdateRequest(8));
+        assertThat(updated.stockQuantity()).isEqualTo(8);
+        assertThat(updated.sku()).isEqualTo(variant.sku());
+
+        ProductVariantResponse zero = productVariantService.updateStock(
+                product.id(), variant.id(), new StockUpdateRequest(0));
+        assertThat(zero.stockQuantity()).isEqualTo(0);
+
+        assertThatThrownBy(() -> productVariantService.updateStock(
+                product.id(), variant.id(), new StockUpdateRequest(-1)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("stockQuantity");
+        assertThatThrownBy(() -> productVariantService.updateStock(
+                product.id(), 999_999_999L, new StockUpdateRequest(1)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Product variant not found");
+        assertThatThrownBy(() -> productVariantService.updateStock(
+                other.id(), variant.id(), new StockUpdateRequest(1)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Product variant not found");
     }
 
     @Test

@@ -76,7 +76,7 @@ public class ProductVariantService {
         assertProductIdMatch(productId, normalized.productId());
         assertStock(normalized.stockQuantity());
         lockProduct(productId);
-        ProductVariant variant = requireOwnedVariant(productId, variantId);
+        ProductVariant variant = lockOwnedVariant(productId, variantId);
         if (!variant.getProduct().getId().equals(normalized.productId())) {
             throw new BusinessRuleException("Product variant cannot be moved to another product");
         }
@@ -94,7 +94,7 @@ public class ProductVariantService {
         requestValidator.validate(request);
         assertStock(request.stockQuantity());
         lockProduct(productId);
-        ProductVariant variant = requireOwnedVariant(productId, variantId);
+        ProductVariant variant = lockOwnedVariant(productId, variantId);
         variant.setStockQuantity(request.stockQuantity());
         return CatalogMapper.toVariantResponse(variant);
     }
@@ -131,8 +131,8 @@ public class ProductVariantService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
     }
 
-    private ProductVariant requireOwnedVariant(Long productId, Long variantId) {
-        ProductVariant variant = productVariantRepository.findById(variantId)
+    private ProductVariant lockOwnedVariant(Long productId, Long variantId) {
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product variant not found"));
         if (!variant.getProduct().getId().equals(productId)) {
             throw new ResourceNotFoundException("Product variant not found");

@@ -24,6 +24,7 @@ import com.DatShop.repository.OrderRepository;
 import com.DatShop.repository.ProductImageRepository;
 import com.DatShop.repository.ProductVariantRepository;
 import com.DatShop.repository.VoucherRepository;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -61,6 +62,7 @@ public class CheckoutService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final Clock clock;
+    private final EntityManager entityManager;
 
     public CheckoutService(
             CurrentUserService currentUserService,
@@ -73,7 +75,8 @@ public class CheckoutService {
             VoucherCalculator voucherCalculator,
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
-            Clock clock) {
+            Clock clock,
+            EntityManager entityManager) {
         this.currentUserService = currentUserService;
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
@@ -85,6 +88,7 @@ public class CheckoutService {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.clock = clock;
+        this.entityManager = entityManager;
     }
 
     @Transactional
@@ -92,7 +96,9 @@ public class CheckoutService {
         User user = currentUserService.lockCurrentUser(authentication);
         Cart cart = cartRepository.findByUser_Id(user.getId())
                 .orElseThrow(() -> new BusinessRuleException(EMPTY_CART));
-        List<CartItem> cartItems = cartItemRepository.findByCart_IdOrderByCreatedAtAscIdAsc(cart.getId());
+        // Do not EntityGraph-load ProductVariant here: a managed instance would keep pre-lock stock
+        // after SELECT FOR UPDATE and both checkouts could deduct the same unit.
+        List<CartItem> cartItems = cartItemRepository.findByCart_IdForCheckoutOrderByCreatedAtAscIdAsc(cart.getId());
         if (cartItems.isEmpty()) {
             throw new BusinessRuleException(EMPTY_CART);
         }
@@ -101,7 +107,7 @@ public class CheckoutService {
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found"));
 
         List<Long> variantIds = cartItems.stream()
-                .map(item -> item.getProductVariant().getId())
+                .map(item -> variantIdWithoutLoading(item.getProductVariant()))
                 .distinct()
                 .sorted()
                 .toList();
@@ -209,6 +215,14 @@ public class CheckoutService {
         cartItemRepository.deleteAll(cartItems);
         cartItemRepository.flush();
         return OrderMapper.toDetail(order, orderItems);
+    }
+
+    private Long variantIdWithoutLoading(ProductVariant variant) {
+        Object identifier = entityManager.getEntityManagerFactory().getPersistenceUnitUtil().getIdentifier(variant);
+        if (!(identifier instanceof Long id)) {
+            throw new BusinessRuleException(CatalogAvailability.UNAVAILABLE);
+        }
+        return id;
     }
 
     private String newOrderNumber() {

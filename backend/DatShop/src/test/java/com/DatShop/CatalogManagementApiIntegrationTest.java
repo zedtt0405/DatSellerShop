@@ -85,6 +85,15 @@ class CatalogManagementApiIntegrationTest {
                         .content(objectMapper.writeValueAsString(productRequest(
                                 "Denied", "denied-" + suffix(), 1L, 1L, ProductStatus.DRAFT))))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/admin/products/1/variants/1/stock")
+                        .header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new StockUpdateRequest(5))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/admin/products/1/variants/1/stock")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new StockUpdateRequest(5))))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

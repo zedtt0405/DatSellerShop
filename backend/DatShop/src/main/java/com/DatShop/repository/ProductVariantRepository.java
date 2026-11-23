@@ -20,17 +20,16 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
     Optional<ProductVariant> findWithCatalogById(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT v FROM ProductVariant v WHERE v.id = :id")
+    Optional<ProductVariant> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT v FROM ProductVariant v
-            JOIN FETCH v.product p
-            JOIN FETCH p.category
-            JOIN FETCH p.brand
-            LEFT JOIN FETCH v.size
-            LEFT JOIN FETCH v.color
             WHERE v.id IN :ids
             ORDER BY v.id ASC
             """)
-    List<ProductVariant> lockByIdsOrderByIdAsc(@Param("ids") Collection<Long> ids);
+    List<ProductVariant> lockByIdsOrderByIdAsc(@Param("ids") Collection<Long> ids); // single-table FOR UPDATE; no JOIN FETCH
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
