@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../auth/auth-context.ts'
 import { useCart } from '../cart/cart-context.ts'
 import { formatVnd, hasValidSale, isDisplayableImageUrl } from '../components/shop/productDisplay.ts'
+import WishlistControl from '../components/shop/WishlistControl.tsx'
 import {
   activeVariants,
   choiceHasStock,
@@ -441,6 +442,7 @@ function ProductDetailPage() {
           <p className={`mt-6 inline-flex min-h-11 items-center px-3 text-sm font-semibold text-ink ${inStock ? 'border border-ink' : 'bg-sun'}`}>
             {inStock ? 'Còn hàng' : 'Hết hàng'}
           </p>
+          <WishlistControl productId={product.id} variant="label" />
           <PurchasePanel variant={selectedVariant} inStock={inStock} />
           <Link to="/shop" className={`mt-8 inline-flex min-h-11 items-center text-sm font-semibold text-ink underline ${controlFocus}`}>
             Quay lại sản phẩm

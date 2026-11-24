@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router'
 import { hasCustomerRole } from '../api/cart.ts'
 import { useAuth } from '../auth/auth-context.ts'
 import { useCart } from '../cart/cart-context.ts'
+import { useWishlist } from '../wishlist/wishlist-context.ts'
 
 const links = [
   { to: '/', label: 'Trang chủ', end: true },
@@ -30,6 +31,26 @@ function CartLink({ onNavigate }: { onNavigate: () => void }) {
     <NavLink to="/cart" className={navClassName} onClick={onNavigate}>
       <span className="inline-flex items-center gap-2">
         Giỏ hàng
+        {count != null ? (
+          <span className="inline-flex min-h-6 min-w-6 items-center justify-center bg-neon px-1.5 text-xs font-semibold text-ink">
+            {count}
+          </span>
+        ) : null}
+      </span>
+    </NavLink>
+  )
+}
+
+function WishlistLink({ onNavigate }: { onNavigate: () => void }) {
+  const { user, isInitializing } = useAuth()
+  const { wishlist, phase } = useWishlist()
+  const count =
+    !isInitializing && user && hasCustomerRole(user.roles) && phase === 'ready' && wishlist ? wishlist.itemCount : null
+
+  return (
+    <NavLink to="/wishlist" className={navClassName} onClick={onNavigate}>
+      <span className="inline-flex items-center gap-2">
+        Yêu thích
         {count != null ? (
           <span className="inline-flex min-h-6 min-w-6 items-center justify-center bg-neon px-1.5 text-xs font-semibold text-ink">
             {count}
@@ -114,6 +135,7 @@ function SiteHeader() {
             </NavLink>
           ))}
           <CartLink onNavigate={() => setMenuOpen(false)} />
+          <WishlistLink onNavigate={() => setMenuOpen(false)} />
           <AuthActions onNavigate={() => setMenuOpen(false)} />
         </nav>
 
@@ -146,6 +168,7 @@ function SiteHeader() {
             </NavLink>
           ))}
           <CartLink onNavigate={() => setMenuOpen(false)} />
+          <WishlistLink onNavigate={() => setMenuOpen(false)} />
           <AuthActions onNavigate={() => setMenuOpen(false)} />
         </nav>
       ) : null}

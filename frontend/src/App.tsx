@@ -7,6 +7,7 @@ import NotFoundPage from './pages/NotFoundPage.tsx'
 import ProductDetailPage from './pages/ProductDetailPage.tsx'
 import RegisterPage from './pages/RegisterPage.tsx'
 import ShopPage from './pages/ShopPage.tsx'
+import WishlistPage from './pages/WishlistPage.tsx'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/shop/:slug" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="*" element={<NotFoundPage />} />

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import type { ProductCardResponse } from '../../api/catalog.ts'
 import { formatVnd, hasValidSale, isDisplayableImageUrl } from './productDisplay.ts'
+import WishlistControl from './WishlistControl.tsx'
 
 type CatalogProductCardProps = {
   product: ProductCardResponse
@@ -32,7 +33,8 @@ function CatalogProductCard({ product }: CatalogProductCardProps) {
   const onSale = hasValidSale(product.price, product.salePrice)
 
   return (
-    <article>
+    <article className="relative">
+      <WishlistControl productId={product.id} variant="icon" />
       <Link
         to={`/shop/${encodeURIComponent(product.slug)}`}
         className="block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
