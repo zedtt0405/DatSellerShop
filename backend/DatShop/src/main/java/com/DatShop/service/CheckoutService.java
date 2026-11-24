@@ -28,6 +28,7 @@ import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -44,9 +45,10 @@ public class CheckoutService {
 
     /**
      * Checkout lock order is always:
-     * 1. current User (PESSIMISTIC_WRITE)
-     * 2. ProductVariants sorted by id ASC (PESSIMISTIC_WRITE)
-     * 3. Voucher if a code is supplied (PESSIMISTIC_WRITE)
+     * 1. current User (PESSIMISTIC_WRITE), and that locking select is the transaction's first SQL
+     * 2. CartItems sorted by id ASC (PESSIMISTIC_WRITE)
+     * 3. ProductVariants sorted by id ASC (PESSIMISTIC_WRITE)
+     * 4. Voucher if a code is supplied (PESSIMISTIC_WRITE)
      */
     private static final String EMPTY_CART = "Cart is empty";
     private static final String INVALID_VOUCHER = "Voucher is invalid";
@@ -93,15 +95,20 @@ public class CheckoutService {
 
     @Transactional
     public OrderDetailResponse checkout(Authentication authentication, CheckoutRequest request) {
-        User user = currentUserService.lockCurrentUser(authentication);
+        User user = currentUserService.lockCheckoutUser(authentication);
         Cart cart = cartRepository.findByUser_Id(user.getId())
                 .orElseThrow(() -> new BusinessRuleException(EMPTY_CART));
+        // Lock cart rows after the user lock. A non-locking read can repeat a snapshot from before
+        // the waiting transaction observed the other checkout's delete.
         // Do not EntityGraph-load ProductVariant here: a managed instance would keep pre-lock stock
         // after SELECT FOR UPDATE and both checkouts could deduct the same unit.
-        List<CartItem> cartItems = cartItemRepository.findByCart_IdForCheckoutOrderByCreatedAtAscIdAsc(cart.getId());
-        if (cartItems.isEmpty()) {
+        List<CartItem> lockedItems = cartItemRepository.lockByCartIdOrderByIdAsc(cart.getId());
+        if (lockedItems.isEmpty()) {
             throw new BusinessRuleException(EMPTY_CART);
         }
+        List<CartItem> cartItems = lockedItems.stream()
+                .sorted(Comparator.comparing(CartItem::getCreatedAt).thenComparing(CartItem::getId))
+                .toList();
 
         Address address = addressRepository.findByIdAndUser_Id(request.addressId(), user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Address not found"));

@@ -31,6 +31,14 @@ public class CurrentUserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
+    /**
+     * First statement of checkout. A plain select before this lock would freeze a repeatable-read snapshot.
+     */
+    public User lockCheckoutUser(Authentication authentication) {
+        return userRepository.findByUsernameForUpdate(username(authentication))
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
     private static String username(Authentication authentication) {
         return authentication.getName();
     }

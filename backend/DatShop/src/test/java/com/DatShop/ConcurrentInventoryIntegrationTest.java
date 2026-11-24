@@ -195,6 +195,59 @@ class ConcurrentInventoryIntegrationTest {
     }
 
     @Test
+    void sameCustomerConcurrentCheckout_oneCreatedOneEmptyCart() throws Exception {
+        CatalogFixture catalog = publishedProduct(4);
+        Voucher voucher = persistUnusedVoucher();
+        Session buyer = customerWithCart(catalog.variantId);
+        long ordersBefore = orderRepository.count();
+        int stockBefore = productVariantRepository.findById(catalog.variantId).orElseThrow().getStockQuantity();
+
+        CyclicBarrier start = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<TimedCheckout> first = executor.submit(() -> checkoutAfter(start, buyer, voucher.getCode()));
+            Future<TimedCheckout> second = executor.submit(() -> checkoutAfter(start, buyer, voucher.getCode()));
+            TimedCheckout timedA = awaitTimedCheckout(first);
+            TimedCheckout timedB = awaitTimedCheckout(second);
+            MvcResult resultA = timedA.result();
+            MvcResult resultB = timedB.result();
+            int statusA = resultA.getResponse().getStatus();
+            int statusB = resultB.getResponse().getStatus();
+            assertNoLockFailure(statusA, body(resultA));
+            assertNoLockFailure(statusB, body(resultB));
+            assertThat(List.of(statusA, statusB)).containsExactlyInAnyOrder(201, 400);
+
+            MvcResult createdResult = statusA == 201 ? resultA : resultB;
+            MvcResult rejected = statusA == 201 ? resultB : resultA;
+            JsonNode created = read(createdResult);
+            assertThat(read(rejected).get("message").asText()).isEqualTo("Cart is empty");
+            String orderNumber = created.get("orderNumber").asText();
+            assertThat(orderNumber).startsWith("ORD-");
+
+            String database = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+            assertThat(database).isEqualTo(TEST_DB);
+            Integer stock = jdbcTemplate.queryForObject(
+                    "SELECT stock_quantity FROM product_variants WHERE id = ?", Integer.class, catalog.variantId);
+            assertThat(stock).isEqualTo(stockBefore - 1);
+            Integer buyerOrders = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM orders WHERE user_id = ?", Integer.class, buyer.userId);
+            Integer allOrders = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM orders", Integer.class);
+            assertThat(buyerOrders).isEqualTo(1);
+            assertThat(allOrders).isEqualTo((int) ordersBefore + 1);
+            Integer payments = jdbcTemplate.queryForObject(
+                    """
+                            SELECT COUNT(*) FROM payments p
+                            JOIN orders o ON o.id = p.order_id
+                            WHERE o.order_number = ?
+                            """,
+                    Integer.class,
+                    orderNumber);
+            assertThat(payments).isZero();
+            assertThat(voucherRepository.findById(voucher.getId()).orElseThrow().getUsedCount()).isEqualTo(1);
+            assertThat(cartItems(buyer.userId)).isEmpty();
+        }
+    }
+
+    @Test
     void adminUpdateStockThenCheckout_realServices_adminCommitFirst() throws Exception {
         CatalogFixture catalog = publishedProduct(1);
         Session buyer = customerWithCart(catalog.variantId);
@@ -423,9 +476,13 @@ class ConcurrentInventoryIntegrationTest {
     }
 
     private TimedCheckout checkoutAfter(CyclicBarrier start, Session buyer) throws Exception {
+        return checkoutAfter(start, buyer, null);
+    }
+
+    private TimedCheckout checkoutAfter(CyclicBarrier start, Session buyer, String voucherCode) throws Exception {
         start.await(15, TimeUnit.SECONDS);
         long started = System.nanoTime();
-        MvcResult result = performCheckout(buyer);
+        MvcResult result = performCheckout(buyer, voucherCode);
         return new TimedCheckout(result, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started));
     }
 
@@ -448,10 +505,15 @@ class ConcurrentInventoryIntegrationTest {
     }
 
     private MvcResult performCheckout(Session buyer) throws Exception {
+        return performCheckout(buyer, null);
+    }
+
+    private MvcResult performCheckout(Session buyer, String voucherCode) throws Exception {
         return mockMvc.perform(post("/api/checkout")
                         .header("Authorization", bearer(buyer.token))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CheckoutRequest(buyer.addressId, null, null))))
+                        .content(objectMapper.writeValueAsString(
+                                new CheckoutRequest(buyer.addressId, voucherCode, null))))
                 .andReturn();
     }
 
