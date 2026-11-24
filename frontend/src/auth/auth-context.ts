@@ -12,6 +12,7 @@ export type AuthContextValue = {
   retrySession: () => Promise<void>
   getAccessToken: () => string | null
   expireSession: (token: string) => void
+  syncAccount: (account: { fullName: string; phoneNumber: string | null }) => void
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

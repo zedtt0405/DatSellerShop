@@ -75,6 +75,12 @@ function AuthActions({ onNavigate }: { onNavigate: () => void }) {
         <span className="block max-w-40 truncate px-3 py-2 text-sm font-semibold text-ink" title={user.fullName}>
           {user.fullName}
         </span>
+        <NavLink to="/profile" className={navClassName} onClick={onNavigate}>
+          Tài khoản
+        </NavLink>
+        <NavLink to="/addresses" className={navClassName} onClick={onNavigate}>
+          Địa chỉ
+        </NavLink>
         <button
           type="button"
           className={`block min-h-11 px-3 py-2 text-left text-sm font-medium text-ink ${focusRing}`}
@@ -128,7 +134,7 @@ function SiteHeader() {
           DatSellerShop
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex" aria-label="Chính">
+        <nav className="hidden max-w-[75%] flex-wrap items-center justify-end gap-1 md:flex" aria-label="Chính">
           {links.map((link) => (
             <NavLink key={link.to} to={link.to} end={link.end} className={navClassName}>
               {link.label}

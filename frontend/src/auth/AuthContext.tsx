@@ -133,6 +133,12 @@ function AuthProvider({ children }: { children: ReactNode }) {
     [clearTokenIfCurrent],
   )
 
+  const syncAccount = useCallback((account: { fullName: string; phoneNumber: string | null }) => {
+    setUser((current) =>
+      current ? { ...current, fullName: account.fullName, phoneNumber: account.phoneNumber } : current,
+    )
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -145,8 +151,20 @@ function AuthProvider({ children }: { children: ReactNode }) {
       retrySession,
       getAccessToken,
       expireSession,
+      syncAccount,
     }),
-    [user, isInitializing, sessionError, login, register, logout, retrySession, getAccessToken, expireSession],
+    [
+      user,
+      isInitializing,
+      sessionError,
+      login,
+      register,
+      logout,
+      retrySession,
+      getAccessToken,
+      expireSession,
+      syncAccount,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
