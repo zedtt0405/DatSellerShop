@@ -3,6 +3,7 @@ import MainLayout from './layouts/MainLayout.tsx'
 import HomePage from './pages/HomePage.tsx'
 import AddressesPage from './pages/AddressesPage.tsx'
 import CartPage from './pages/CartPage.tsx'
+import CheckoutPage from './pages/CheckoutPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import ProfilePage from './pages/ProfilePage.tsx'
 import NotFoundPage from './pages/NotFoundPage.tsx'
@@ -19,6 +20,7 @@ function App() {
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/shop/:slug" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/addresses" element={<AddressesPage />} />

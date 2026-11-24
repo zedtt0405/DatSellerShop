@@ -304,14 +304,22 @@ function CartPage() {
               <p className="mt-2 text-lg font-semibold text-ink">Tổng tiền giỏ hàng {formatVnd(cart.subtotal)}</p>
               <p className="mt-2 max-w-md text-sm text-ash">Tổng tiền giỏ hàng chưa phải tổng thanh toán cuối cùng.</p>
             </div>
-            <button
-              type="button"
-              className={`inline-flex min-h-11 items-center border border-ink px-4 text-sm font-semibold text-ink ${focusRing}`}
-              disabled={isMutating}
-              onClick={() => void commitClear()}
-            >
-              Làm trống giỏ
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/checkout"
+                className={`inline-flex min-h-11 items-center bg-neon px-4 text-sm font-semibold text-ink hover:bg-neon/80 ${focusRing}`}
+              >
+                Thanh toán
+              </Link>
+              <button
+                type="button"
+                className={`inline-flex min-h-11 items-center border border-ink px-4 text-sm font-semibold text-ink ${focusRing}`}
+                disabled={isMutating}
+                onClick={() => void commitClear()}
+              >
+                Làm trống giỏ
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
