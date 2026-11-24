@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { cartErrorMessage, hasCustomerRole } from '../api/cart.ts'
 import {
   CatalogApiError,
   getProduct,
   type ProductDetailResponse,
   type ProductImageResponse,
+  type ProductVariantResponse,
 } from '../api/catalog.ts'
+import { useAuth } from '../auth/auth-context.ts'
+import { useCart } from '../cart/cart-context.ts'
 import { formatVnd, hasValidSale, isDisplayableImageUrl } from '../components/shop/productDisplay.ts'
 import {
   activeVariants,
@@ -54,6 +58,119 @@ function errorMessage(error: unknown): string {
     return error.message
   }
   return 'Không tải được sản phẩm.'
+}
+
+function PurchasePanel({ variant, inStock }: { variant: ProductVariantResponse | null; inStock: boolean }) {
+  const { user, isInitializing } = useAuth()
+  const { addItem, isMutating } = useCart()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const max = variant != null && typeof variant.stockQuantity === 'number' && variant.stockQuantity > 0 ? variant.stockQuantity : 0
+  const [draft, setDraft] = useState<{ variantId: number; quantity: number } | null>(null)
+  const [feedback, setFeedback] = useState<{ variantId: number; kind: 'ok' | 'error'; text: string } | null>(null)
+  const stored = draft && variant && draft.variantId === variant.id ? draft.quantity : 1
+  const quantity = max > 0 ? Math.min(Math.max(stored, 1), max) : 1
+  const visibleFeedback = feedback && variant && feedback.variantId === variant.id ? feedback : null
+  const canAdd = variant != null && inStock && quantity >= 1 && quantity <= max
+
+  if (user && !hasCustomerRole(user.roles)) {
+    return <p className="mt-6 max-w-xl text-sm leading-6 text-ash">Giỏ hàng dành cho tài khoản khách hàng.</p>
+  }
+
+  function changeQuantity(next: number) {
+    if (!variant || max < 1) {
+      return
+    }
+    setDraft({ variantId: variant.id, quantity: Math.min(Math.max(next, 1), max) })
+  }
+
+  async function submit() {
+    if (!variant || !canAdd || isMutating || isInitializing) {
+      return
+    }
+    if (!user) {
+      navigate('/login', { state: { from: `${location.pathname}${location.search}` } })
+      return
+    }
+    setFeedback(null)
+    try {
+      const applied = await addItem(variant.id, quantity)
+      if (applied) {
+        setFeedback({ variantId: variant.id, kind: 'ok', text: 'Đã thêm vào giỏ hàng.' })
+      }
+    } catch (caught) {
+      setFeedback({
+        variantId: variant.id,
+        kind: 'error',
+        text: cartErrorMessage(caught, 'Không thêm được sản phẩm vào giỏ.'),
+      })
+    }
+  }
+
+  return (
+    <div className="mt-6">
+      <label htmlFor="product-quantity" className="text-sm text-ash">
+        Số lượng
+      </label>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          className={`inline-flex h-11 w-11 items-center justify-center border border-ink text-lg ${controlFocus}`}
+          aria-label="Giảm số lượng"
+          disabled={!canAdd || quantity <= 1 || isMutating}
+          onClick={() => changeQuantity(quantity - 1)}
+        >
+          −
+        </button>
+        <input
+          id="product-quantity"
+          inputMode="numeric"
+          value={String(quantity)}
+          disabled={!canAdd || isMutating}
+          onChange={(event) => {
+            if (!variant) {
+              return
+            }
+            const digits = event.target.value.replace(/[^\d]/g, '')
+            const parsed = Number(digits)
+            if (digits.length === 0 || !Number.isInteger(parsed)) {
+              setDraft({ variantId: variant.id, quantity: 1 })
+              return
+            }
+            changeQuantity(parsed)
+          }}
+          className={`h-11 w-16 border border-line text-center text-sm text-ink ${controlFocus}`}
+        />
+        <button
+          type="button"
+          className={`inline-flex h-11 w-11 items-center justify-center border border-ink text-lg ${controlFocus}`}
+          aria-label="Tăng số lượng"
+          disabled={!canAdd || quantity >= max || isMutating}
+          onClick={() => changeQuantity(quantity + 1)}
+        >
+          +
+        </button>
+      </div>
+      <button
+        type="button"
+        className={`mt-4 inline-flex min-h-11 items-center bg-neon px-6 text-sm font-semibold text-ink hover:bg-neon/80 disabled:cursor-not-allowed disabled:bg-line disabled:text-ash ${controlFocus}`}
+        disabled={!canAdd || isMutating || isInitializing}
+        onClick={() => void submit()}
+      >
+        {isMutating ? 'Đang thêm...' : 'Thêm vào giỏ hàng'}
+      </button>
+      {visibleFeedback ? (
+        <p className="mt-3 text-sm text-ink" role={visibleFeedback.kind === 'error' ? 'alert' : 'status'}>
+          {visibleFeedback.text}{' '}
+          {visibleFeedback.kind === 'ok' ? (
+            <Link to="/cart" className={`font-semibold underline ${controlFocus}`}>
+              Xem giỏ hàng
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 function ImagePlaceholder() {
@@ -324,6 +441,7 @@ function ProductDetailPage() {
           <p className={`mt-6 inline-flex min-h-11 items-center px-3 text-sm font-semibold text-ink ${inStock ? 'border border-ink' : 'bg-sun'}`}>
             {inStock ? 'Còn hàng' : 'Hết hàng'}
           </p>
+          <PurchasePanel variant={selectedVariant} inStock={inStock} />
           <Link to="/shop" className={`mt-8 inline-flex min-h-11 items-center text-sm font-semibold text-ink underline ${controlFocus}`}>
             Quay lại sản phẩm
           </Link>
