@@ -81,6 +81,9 @@ function AuthActions({ onNavigate }: { onNavigate: () => void }) {
         <NavLink to="/addresses" className={navClassName} onClick={onNavigate}>
           Địa chỉ
         </NavLink>
+        <NavLink to="/orders" className={navClassName} onClick={onNavigate}>
+          Đơn hàng
+        </NavLink>
         <button
           type="button"
           className={`block min-h-11 px-3 py-2 text-left text-sm font-medium text-ink ${focusRing}`}

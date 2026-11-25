@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../auth/auth-context.ts'
 import { useCart } from '../cart/cart-context.ts'
 import { formatVnd, hasValidSale, isDisplayableImageUrl } from '../components/shop/productDisplay.ts'
+import ProductReviews from '../components/shop/ProductReviews.tsx'
 import WishlistControl from '../components/shop/WishlistControl.tsx'
 import {
   activeVariants,
@@ -449,6 +450,7 @@ function ProductDetailPage() {
           </Link>
         </div>
       </div>
+      <ProductReviews productId={product.id} slug={product.slug} />
     </section>
   )
 }

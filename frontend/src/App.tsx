@@ -7,6 +7,8 @@ import CheckoutPage from './pages/CheckoutPage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import ProfilePage from './pages/ProfilePage.tsx'
 import NotFoundPage from './pages/NotFoundPage.tsx'
+import OrderDetailPage from './pages/OrderDetailPage.tsx'
+import OrdersPage from './pages/OrdersPage.tsx'
 import ProductDetailPage from './pages/ProductDetailPage.tsx'
 import RegisterPage from './pages/RegisterPage.tsx'
 import ShopPage from './pages/ShopPage.tsx'
@@ -21,6 +23,8 @@ function App() {
         <Route path="/shop/:slug" element={<ProductDetailPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/orders/:orderNumber" element={<OrderDetailPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/addresses" element={<AddressesPage />} />

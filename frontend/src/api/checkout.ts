@@ -126,6 +126,10 @@ const SERVER_TEXT: Record<string, string> = {
   'Payment cannot be created for this order': 'Đơn này không thể tạo thanh toán.',
   'Order not found': 'Không tìm thấy đơn hàng.',
   'Payment not found': 'Đơn chưa có thanh toán.',
+  'Order cannot be cancelled': 'Đơn này không thể hủy.',
+  'Paid order requires refund handling': 'Đơn đã thanh toán cần xử lý hoàn tiền trước khi hủy.',
+  'Order inventory cannot be restored safely': 'Chưa hoàn được tồn kho an toàn. Đơn chưa bị hủy.',
+  'Voucher usage cannot be restored safely': 'Chưa hoàn được lượt dùng mã giảm giá. Đơn chưa bị hủy.',
 }
 
 export function checkoutErrorMessage(error: unknown, fallback: string): string {
@@ -237,17 +241,43 @@ export async function getPayment(token: string, orderNumber: string, signal?: Ab
   }
 }
 
-export async function listRecentOrders(token: string, signal?: AbortSignal): Promise<OrderSummary[]> {
-  const payload = await requestJson('/api/orders?page=0&size=5', {
+export type OrdersPage = {
+  content: OrderSummary[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+export async function listOrders(
+  token: string,
+  page: number,
+  size: number,
+  signal?: AbortSignal,
+): Promise<OrdersPage> {
+  const payload = await requestJson(`/api/orders?page=${page}&size=${size}`, {
     method: 'GET',
     token,
     signal,
     ok: new Set([200]),
   })
-  if (!isRecord(payload) || !Array.isArray(payload.content)) {
-    throw new CheckoutApiError('Dữ liệu đơn hàng không đúng định dạng.', 200)
-  }
-  return payload.content.map(readSummary)
+  return readOrdersPage(payload)
+}
+
+export async function cancelOrder(token: string, orderNumber: string): Promise<OrderDetail> {
+  const payload = await requestJson(`/api/orders/${encodeURIComponent(orderNumber)}/cancel`, {
+    method: 'PATCH',
+    token,
+    ok: new Set([200]),
+  })
+  return readOrder(payload)
+}
+
+export async function listRecentOrders(token: string, signal?: AbortSignal): Promise<OrderSummary[]> {
+  const page = await listOrders(token, 0, 5, signal)
+  return page.content
 }
 
 const MATCH_WINDOW_MS = 3 * 60 * 1000
@@ -315,7 +345,7 @@ function sameLines(items: OrderLine[], lines: CheckoutAttempt['lines']): boolean
   return left.every((item, index) => item.variantId === right[index].variantId && item.quantity === right[index].quantity)
 }
 
-type JsonMethod = 'GET' | 'POST'
+type JsonMethod = 'GET' | 'POST' | 'PATCH'
 
 async function requestJson(
   path: string,
@@ -436,6 +466,37 @@ function readOrder(payload: unknown): OrderDetail {
     items: payload.items.map(readLine),
     createdAt: payload.createdAt,
     updatedAt: payload.updatedAt,
+  }
+}
+
+function readOrdersPage(payload: unknown): OrdersPage {
+  if (!isRecord(payload) || !Array.isArray(payload.content)) {
+    throw new CheckoutApiError('Dữ liệu đơn hàng không đúng định dạng.', 200)
+  }
+  const page = readInt(payload.page)
+  const size = readInt(payload.size)
+  const totalPages = readInt(payload.totalPages)
+  const totalElements = typeof payload.totalElements === 'number' && Number.isFinite(payload.totalElements)
+    ? payload.totalElements
+    : null
+  if (
+    page == null ||
+    size == null ||
+    totalPages == null ||
+    totalElements == null ||
+    typeof payload.first !== 'boolean' ||
+    typeof payload.last !== 'boolean'
+  ) {
+    throw new CheckoutApiError('Dữ liệu đơn hàng không đúng định dạng.', 200)
+  }
+  return {
+    content: payload.content.map(readSummary),
+    page,
+    size,
+    totalElements,
+    totalPages,
+    first: payload.first,
+    last: payload.last,
   }
 }
 

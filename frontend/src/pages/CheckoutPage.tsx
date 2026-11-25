@@ -628,8 +628,11 @@ function OrderResult({
           {busy ? 'Đang tạo thanh toán...' : 'Thử lại thanh toán'}
         </button>
       ) : null}
-      <Link to="/cart" className={`mt-4 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-ink underline ${focusRing}`}>
-        Xem giỏ hàng
+      <Link
+        to={`/orders/${encodeURIComponent(order.orderNumber)}`}
+        className={`mt-4 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-ink underline ${focusRing}`}
+      >
+        Xem đơn hàng
       </Link>
     </div>
   )
